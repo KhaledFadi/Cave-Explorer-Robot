@@ -123,7 +123,7 @@ void openGripper() {
 void closeGripper() {
   // Close the gripper by adjusting servo position
 }
-//code for Human Detection Model//
+#####code for Human Detection Model#####
 
 from jetson_inference import detectNet
 from jetson_utils import videoSource, videoOutput
