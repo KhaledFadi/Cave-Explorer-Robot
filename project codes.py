@@ -127,7 +127,16 @@ void closeGripper() {
 
 import cv2
 import imutils
-import numpy as np 
+import numpy as np
+import RPi.GPIO as GPIO
+import time
+
+# Set up GPIO pin for the buzzer
+BUZZER_PIN = 18  # Change to the correct pin number
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(BUZZER_PIN, GPIO.OUT)
+GPIO.output(BUZZER_PIN, GPIO.LOW)
 
 protopath = "model/object_detection/MobileNetSSD_deploy.prototxt"
 modelpath = "model/object_detection/MobileNetSSD_deploy.caffemodel"
@@ -135,16 +144,20 @@ detector = cv2.dnn.readNetFromCaffe(protopath, modelpath)
 
 CLASSES = ["person"]
 
-cap = cv2.VideoCapture("videos/test_video.mp4")
+cap = cv2.VideoCapture(0)  # Use the first connected camera
 
 while True:
     ret, frame = cap.read()
+    if not ret:
+        break
+    
     frame = imutils.resize(frame, width=600)
-
     (H, W) = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
     detector.setInput(blob)
     person_detections = detector.forward()
+
+    person_detected = False
 
     for i in np.arange(0, person_detections.shape[2]):
         confidence = person_detections[0, 0, i, 2]
@@ -152,14 +165,22 @@ while True:
             idx = int(person_detections[0, 0, i, 1])
             if CLASSES[idx] != "person":
                 continue
-            
+
+            person_detected = True
             person_box = person_detections[0, 0, i, 3:7] * np.array([W, H, W, H])
             (startX, startY, endX, endY) = person_box.astype("int")
             cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
+
+    if person_detected:
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(1)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
 
     cv2.imshow("Application", frame)
     key = cv2.waitKey(1)
     if key == ord("q"):
         break
 
+cap.release()
 cv2.destroyAllWindows()
+GPIO.cleanup()
