@@ -125,41 +125,41 @@ void closeGripper() {
 }
 #####code for Human Detection Model#####
 
-from jetson_inference import detectNet
-from jetson_utils import videoSource, videoOutput
-import Jetson.GPIO as GPIO
-import time
+import cv2
+import imutils
+import numpy as np 
 
-# GPIO pin connected to the buzzer
-BUZZER_PIN = 18
+protopath = "model/object_detection/MobileNetSSD_deploy.prototxt"
+modelpath = "model/object_detection/MobileNetSSD_deploy.caffemodel"
+detector = cv2.dnn.readNetFromCaffe(protopath, modelpath)
 
-# Initialize GPIO
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(BUZZER_PIN, GPIO.OUT)
+CLASSES = ["person"]
 
-net = detectNet("ssd-mobilenet-v2", threshold=0.5)
-camera = videoSource("csi://0")      # '/dev/video0' for V4L2
-display = videoOutput("display://0") # 'my_video.mp4' for file
+cap = cv2.VideoCapture("videos/test_video.mp4")
 
-while display.IsStreaming():
-    img = camera.Capture()
+while True:
+    ret, frame = cap.read()
+    frame = imutils.resize(frame, width=600)
 
-    if img is None: # capture timeout
-        continue
+    (H, W) = frame.shape[:2]
+    blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
+    detector.setInput(blob)
+    person_detections = detector.forward()
 
-    detections = net.Detect(img)
+    for i in np.arange(0, person_detections.shape[2]):
+        confidence = person_detections[0, 0, i, 2]
+        if confidence > 0.5:
+            idx = int(person_detections[0, 0, i, 1])
+            if CLASSES[idx] != "person":
+                continue
+            
+            person_box = person_detections[0, 0, i, 3:7] * np.array([W, H, W, H])
+            (startX, startY, endX, endY) = person_box.astype("int")
+            cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
 
-    # Check if human is detected
-    for detection in detections:
-        if detection.ClassID == 1:  # Assuming human class ID is 1
-            # Turn on the buzzer
-            GPIO.output(BUZZER_PIN, GPIO.HIGH)
-            time.sleep(0.5)  # Buzzer activation duration
-            # Turn off the buzzer
-            GPIO.output(BUZZER_PIN, GPIO.LOW)
+    cv2.imshow("Application", frame)
+    key = cv2.waitKey(1)
+    if key == ord("q"):
+        break
 
-    display.Render(img)
-    display.SetStatus("Object Detection | Network {:.0f} FPS".format(net.GetNetworkFPS()))
-
-# Clean up GPIO
-GPIO.cleanup()
+cv2.destroyAllWindows()
