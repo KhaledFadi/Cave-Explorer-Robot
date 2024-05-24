@@ -6,10 +6,7 @@ protopath = "model/object_detection/MobileNetSSD_deploy.prototxt"
 modelpath = "model/object_detection/MobileNetSSD_deploy.caffemodel"
 detector = cv2.dnn.readNetFromCaffe(protopath, modelpath)
 
-CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
-           "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-           "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
-           "sofa", "train", "tvmonitor"]
+CLASSES = ["person"]
 
 cap = cv2.VideoCapture("videos/test_video.mp4")
 
